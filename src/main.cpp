@@ -18,19 +18,23 @@ void i2c_init()
 void i2c_start()
 {
     TWCR = (1 << TWINT) | (1 << TWSTA) | (1 << TWEN);
-    while (!(TWCR & (1 << TWINT)));
+    while (!(TWCR & (1 << TWINT)))
+        ;
 }
 
 void i2c_write(uint8_t data)
 {
     TWDR = data;
-    TWCR = (1 << TWINT)|(1<<TWEN);
-    while (!(TWCR & (1 << TWINT))) ;
+    TWCR = (1 << TWINT) | (1 << TWEN);
+    while (!(TWCR & (1 << TWINT)))
+        ;
 }
 
 void i2c_stop()
 {
     TWCR = (1 << TWINT) | (1 << TWSTO) | (1 << TWEN);
+    while (TWCR & (1 << TWSTO))
+        ;
 }
 
 // Command OLED
@@ -52,7 +56,7 @@ void oled_send_data(uint8_t data)
     i2c_stop();
 }
 
-void olen_init()
+void oled_init()
 {
     _delay_ms(100);
 
@@ -126,12 +130,27 @@ void fb_flush()
 int main()
 {
     i2c_init();
-    olen_init();
+    oled_init();
     fb_clear();
 
-    fb_set_pixel(10, 10, 1);
-    fb_set_pixel(11, 11, 1);
-    fb_set_pixel(12, 12, 1);
+    const uint8_t text[3][5] = {
+        {0b00111000, 0b01000100, 0b01000100, 0b01000100, 0b00101000}, // c
+        {0b01111100, 0b00000100, 0b00011000, 0b00000100, 0b01111000}, // m
+        {0b00111100, 0b01000000, 0b01000000, 0b00100000, 0b01111100}, // u
+    };
+
+    uint8_t scale = 7; // ตัวคูณขยาย
+    uint8_t x0 = 5;    // จุดเริ่มซ้าย
+    uint8_t y0 = 14;   // จุดเริ่มบน
+
+    for (uint8_t ch = 0; ch < 3; ch++)
+        for (uint8_t col = 0; col < 5; col++)
+            for (uint8_t row = 0; row < 7; row++)
+                if (text[ch][col] & (1 << row))
+                    for (uint8_t dx = 0; dx < scale; dx++)
+                        for (uint8_t dy = 0; dy < scale; dy++)
+                            fb_set_pixel(x0 + (ch * 6 + col) * scale + dx,
+                                         y0 + row * scale + dy, 1);
 
     fb_flush();
     while (1)
